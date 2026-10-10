@@ -1,0 +1,130 @@
+{
+  "schema_version": 1,
+  "slug": "unified-diff-preflight",
+  "domain": "quality",
+  "guidance_group": "light",
+  "source_commit": "1286096c10a23bbb04aca83679ae3c31f3326030",
+  "source_repository": "mytestapp20261001-collab/mytest-engineering-toolbox",
+  "source_repository_id": 1411411288,
+  "source_path": "tools/unified-diff-preflight",
+  "root_path": ".",
+  "publication_status": "prepared_only; coordinator verifies final repository identity and remote CI",
+  "expected_repository": "mytestapp20261001-collab/unified-diff-preflight",
+  "repository_id": null,
+  "preserved_files": [
+    {
+      "path": "README.md",
+      "size_bytes": 3597,
+      "sha256": "6e7aaa6123bcdb0e4634af6e6661914a9e213048a3b61b3a1cb0d1da5e325395",
+      "git_blob_sha1": "a8bfe44c5a264fea067c3c16a48df03947737ba8",
+      "utf8": true,
+      "source_path": "tools/unified-diff-preflight/README.md"
+    },
+    {
+      "path": "SKILL.md",
+      "size_bytes": 1095,
+      "sha256": "6d543899c175380cb57a577c34ea3bcad7a0280fad7285c22f0a1c0ffc686bd3",
+      "git_blob_sha1": "6ec13bb76fed05f1f0c1272e568a9d41b11521ec",
+      "utf8": true,
+      "source_path": "tools/unified-diff-preflight/SKILL.md"
+    },
+    {
+      "path": "examples/fail.diff",
+      "size_bytes": 65,
+      "sha256": "6c31f075541ae5946d0f6c603c80eb13714e18dabf3fed3a81e08a2dbfd1ba16",
+      "git_blob_sha1": "92556d8845802831d2392bc307cfbe9c79f996fa",
+      "utf8": true,
+      "source_path": "tools/unified-diff-preflight/examples/fail.diff"
+    },
+    {
+      "path": "examples/pass.diff",
+      "size_bytes": 62,
+      "sha256": "b3c008d4dd7058b8c9f1e0c15bbfa0cfd574750592a2e121097fd7b042b51312",
+      "git_blob_sha1": "fc482d9f5519db173accfc5887101fe3465f7b9d",
+      "utf8": true,
+      "source_path": "tools/unified-diff-preflight/examples/pass.diff"
+    },
+    {
+      "path": "test_tool.py",
+      "size_bytes": 7790,
+      "sha256": "cf76c1eac1870c30dbee5079bc2e510654ddb21fb3d0d5f4da94e051cdf4064e",
+      "git_blob_sha1": "d5158e14210b01b7c3c335ab84344712ee5c4155",
+      "utf8": true,
+      "source_path": "tools/unified-diff-preflight/test_tool.py"
+    },
+    {
+      "path": "tool.py",
+      "size_bytes": 9669,
+      "sha256": "1817fc32609f6ff1984475322bee1eb4a9455674d06ea341330a7d6baeb66ed0",
+      "git_blob_sha1": "1bfbe1e8ab6071d9f449f9273061bf243c8da9e6",
+      "utf8": true,
+      "source_path": "tools/unified-diff-preflight/tool.py"
+    },
+    {
+      "path": "LICENSE",
+      "size_bytes": 1076,
+      "sha256": "dce76471613629e93f3f98b7aaa6f72ff9adb88204a3f83d3045952017ab2f46",
+      "git_blob_sha1": "677c4463d59b560db9c1fde1052eff6eefa6441a",
+      "utf8": true,
+      "source_path": "LICENSE"
+    },
+    {
+      "path": ".gitignore",
+      "size_bytes": 62,
+      "sha256": "e4d5aecc4cd36f593c2e7f3dad08b24261b13466b898004a445614058d29d8de",
+      "git_blob_sha1": "fe9f8fb619601213cbfef4f6eadb5d413d8f7f01",
+      "utf8": true,
+      "source_path": ".gitignore"
+    }
+  ],
+  "readme_checks": [
+    {
+      "label": "README example",
+      "args": [
+        "-I",
+        "tool.py",
+        "examples/pass.diff"
+      ],
+      "expected_exit": 0,
+      "output": "json",
+      "documented_command": "python3.12 -I tool.py examples/pass.diff"
+    },
+    {
+      "label": "README example",
+      "args": [
+        "-I",
+        "tool.py",
+        "examples/fail.diff"
+      ],
+      "expected_exit": 1,
+      "output": "json",
+      "documented_command": "python3.12 -I tool.py examples/fail.diff  # expected exit 1"
+    },
+    {
+      "label": "CLI help",
+      "args": [
+        "tool.py",
+        "--help"
+      ],
+      "expected_exit": 0,
+      "output": "help"
+    },
+    {
+      "label": "CLI missing input",
+      "args": [
+        "tool.py"
+      ],
+      "expected_exit": 2,
+      "output": "json"
+    },
+    {
+      "label": "CLI unknown argument",
+      "args": [
+        "tool.py",
+        "--unsupported-migration-test"
+      ],
+      "expected_exit": 2,
+      "output": "json"
+    }
+  ]
+}
