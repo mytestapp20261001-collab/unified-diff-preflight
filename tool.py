@@ -84,6 +84,7 @@ def audit(text):
     lines = [line[:-1] if line.endswith("\r") else line for line in lines]
     findings, files, hunks, i = [], 0, 0, 0
     current, previous, seen_paths, hunk_seen = None, None, set(), False
+    old_eof = new_eof = None
     pending_git_line = None
     def finish_file():
         if current is not None and not hunk_seen:
@@ -97,6 +98,7 @@ def audit(text):
             if pending_git_line is not None:
                 findings.append(finding("file_without_text_headers", line=pending_git_line))
             current, previous, hunk_seen = None, None, False
+            old_eof = new_eof = None
             pending_git_line = i + 1
             i += 1
             continue
@@ -107,6 +109,7 @@ def audit(text):
             require(not (old == new == "/dev/null"), "both paths cannot be /dev/null")
             files += 1; require(files <= 1000, "file budget exceeded")
             current = (old, new); previous = None; hunk_seen = False
+            old_eof = new_eof = None
             pending_git_line = None
             if unsafe_path(old) or unsafe_path(new):
                 findings.append(finding("unsafe_or_unsupported_path", file_index=files-1, line=i+1))
@@ -131,6 +134,11 @@ def audit(text):
             # Convert to zero-based boundaries, including empty ranges after a line.
             old_begin = old_start-1 if old_count else old_start
             new_begin = new_start-1 if new_count else new_start
+            # An incomplete line is the final line on its own side of a file.
+            # Later hunks may still add/remove only on the opposite side, at
+            # the known EOF boundary, but cannot consume or skip past EOF.
+            require(old_eof is None or (old_count == 0 and old_begin == old_eof), "old range after no-newline marker")
+            require(new_eof is None or (new_count == 0 and new_begin == new_eof), "new range after no-newline marker")
             if previous is not None:
                 po, pn = previous
                 if old_begin < po or new_begin < pn:
@@ -141,6 +149,7 @@ def audit(text):
                 findings.append(finding("inconsistent_initial_position", hunk_index=hunks-1))
             previous = (old_begin+old_count, new_begin+new_count)
             observed_old = observed_new = 0; i += 1; body = False; last_was_marker = False
+            last_prefix = None
             while i < len(lines):
                 content = lines[i]
                 if content.startswith("@@") or content.startswith("diff --git "):
@@ -151,10 +160,17 @@ def audit(text):
                         break
                 if content == "\\ No newline at end of file":
                     require(body and not last_was_marker, "misplaced no-newline marker")
+                    if last_prefix in " -":
+                        old_eof = old_begin + observed_old
+                    if last_prefix in " +":
+                        new_eof = new_begin + observed_new
                     last_was_marker = True; i += 1; continue
                 if not content or content[0] not in " +-":
                     break
                 prefix = content[0]; body = True; last_was_marker = False
+                require(old_eof is None or prefix not in " -", "old content after no-newline marker")
+                require(new_eof is None or prefix not in " +", "new content after no-newline marker")
+                last_prefix = prefix
                 observed_old += prefix in " -"; observed_new += prefix in " +"; i += 1
             if (observed_old, observed_new) != (old_count, new_count):
                 findings.append(finding("hunk_count_mismatch", hunk_index=hunks-1, declared_old=old_count, observed_old=observed_old, declared_new=new_count, observed_new=observed_new))

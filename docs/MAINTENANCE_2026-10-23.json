@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "repository": "mytestapp20261001-collab/unified-diff-preflight",
+  "repository_id": 1413263710,
+  "base_commit": "b605049604dd17509aabc91339d7a2704bb04670",
+  "date": "2026-10-23",
+  "scope": "Authorized maintenance. Original MIGRATION.json, historical hashes, README, SKILL, examples, CI, optional invitation and experiment group remain unchanged.",
+  "changes": [
+    {
+      "path": "tool.py",
+      "original_sha256": "1817fc32609f6ff1984475322bee1eb4a9455674d06ea341330a7d6baeb66ed0",
+      "current_sha256": "05ee898867fc4c0da7d48512224a99db359a0dfc30616d4aa4aa02e99e8af9c9",
+      "reason": "Track side-specific incomplete-line EOF boundaries across hunks; reject content and implied gaps after EOF while preserving opposite-side operations."
+    },
+    {
+      "path": "test_tool.py",
+      "original_sha256": "cf76c1eac1870c30dbee5079bc2e510654ddb21fb3d0d5f4da94e051cdf4064e",
+      "current_sha256": "42f600b4556a6f82ec02500682d85f46569abd6e748547e333e7db90ed0cb9e0",
+      "reason": "Regression coverage for same-side continuation, cross-hunk EOF, empty ranges, side symmetry, file reset, CLI privacy and immutable migration receipts."
+    }
+  ]
+}
