@@ -47,6 +47,103 @@ class Tests(unittest.TestCase):
     def test_combined_rejected(self):
         with self.assertRaises(tool.BadInput): tool.audit('--- a/x\n+++ b/x\n@@@ -1 -1 +1 @@@\n')
     def test_empty(self): self.assertIn('no_file_sections',self.codes(''))
+
+    def patch(self, body):
+        return '--- a/x\n+++ b/x\n' + body
+
+    def test_no_newline_rejects_same_side_continuation(self):
+        cases = [
+            '@@ -1,2 +1,2 @@\n first\n\\ No newline at end of file\n second\n',
+            '@@ -1,2 +1 @@\n-old\n\\ No newline at end of file\n-old2\n+new\n',
+            '@@ -1 +1,2 @@\n-old\n+new\n\\ No newline at end of file\n+new2\n',
+            '@@ -1,2 +1 @@\n-old\n\\ No newline at end of file\n context\n',
+            '@@ -1 +1,2 @@\n+new\n\\ No newline at end of file\n context\n',
+        ]
+        for body in cases:
+            with self.subTest(body=body), self.assertRaises(tool.BadInput):
+                tool.audit(self.patch(body))
+
+    def test_no_newline_rejects_later_same_side_hunks(self):
+        for body in [
+            '@@ -1 +1 @@\n-old\n\\ No newline at end of file\n+new\n@@ -2 +2 @@\n-next\n+last\n',
+            '@@ -1 +1 @@\n-old\n+new\n\\ No newline at end of file\n@@ -2 +2 @@\n-next\n+last\n',
+            '@@ -1 +1 @@\n same\n\\ No newline at end of file\n@@ -2 +2 @@\n-next\n+last\n',
+        ]:
+            with self.subTest(body=body), self.assertRaises(tool.BadInput):
+                tool.audit(self.patch(body))
+
+    def test_no_newline_rejects_empty_range_beyond_eof(self):
+        for body in [
+            '@@ -1 +1 @@\n-old\n\\ No newline at end of file\n+new\n@@ -2,0 +3 @@\n+later\n',
+            '@@ -1 +1 @@\n-old\n+new\n\\ No newline at end of file\n@@ -3 +2,0 @@\n-later\n',
+        ]:
+            with self.subTest(body=body), self.assertRaises(tool.BadInput):
+                tool.audit(self.patch(body))
+
+    def test_no_newline_allows_opposite_side_continuation(self):
+        # Cover GNU diff replacements plus the supported add-first ordering.
+        for body in [
+            '@@ -1 +1,2 @@\n-old\n\\ No newline at end of file\n+new\n+new2\n',
+            '@@ -1,2 +1 @@\n+new\n\\ No newline at end of file\n-old\n-old2\n',
+            '@@ -1 +1 @@\n-old\n\\ No newline at end of file\n+new\n\\ No newline at end of file\n',
+        ]:
+            with self.subTest(body=body):
+                self.assertEqual(tool.audit(self.patch(body))['status'], 'pass')
+
+    def test_no_newline_allows_opposite_side_later_hunk_at_eof(self):
+        for body in [
+            '@@ -1 +1 @@\n-old\n\\ No newline at end of file\n+new\n@@ -1,0 +2 @@\n+later\n',
+            '@@ -1 +1 @@\n-old\n+new\n\\ No newline at end of file\n@@ -2 +1,0 @@\n-later\n',
+        ]:
+            with self.subTest(body=body):
+                self.assertEqual(tool.audit(self.patch(body))['status'], 'pass')
+
+    def test_no_newline_resets_for_next_file(self):
+        first = self.patch('@@ -1 +1 @@\n-old\n\\ No newline at end of file\n+new\n\\ No newline at end of file\n')
+        second = self.good()
+        for boundary in ['', 'diff --git a/demo.txt b/demo.txt\n']:
+            with self.subTest(boundary=boundary):
+                result = tool.audit(first + boundary + second)
+                self.assertEqual(result['status'], 'pass')
+                self.assertEqual(result['summary']['files'], 2)
+
+    def test_no_newline_create_delete_and_crlf(self):
+        for patch in [
+            '--- /dev/null\n+++ b/x\n@@ -0,0 +1 @@\n+new\n\\ No newline at end of file\n',
+            '--- a/x\n+++ /dev/null\n@@ -1 +0,0 @@\n-old\n\\ No newline at end of file\n',
+            self.patch('@@ -1 +1 @@\n-old\n+new\n\\ No newline at end of file\n').replace('\n', '\r\n'),
+        ]:
+            with self.subTest(patch=patch):
+                self.assertEqual(tool.audit(patch)['status'], 'pass')
+
+    def test_maintenance_receipt_is_narrow_and_preserves_original_hashes(self):
+        spec = importlib.util.spec_from_file_location('validate_release', HERE/'scripts/validate_release.py')
+        validator = importlib.util.module_from_spec(spec); spec.loader.exec_module(validator)
+        record = json.loads((HERE/'docs/MIGRATION.json').read_text())
+        receipt = json.loads((HERE/'docs/MAINTENANCE_2026-10-23.json').read_text())
+        original = copy.deepcopy(record)
+        expected = validator.maintenance_hashes(record, receipt)
+        self.assertEqual(record, original)
+        self.assertEqual(set(c['path'] for c in receipt['changes']), {'tool.py', 'test_tool.py'})
+        for change in receipt['changes']:
+            self.assertEqual(expected[change['path']], change['current_sha256'])
+        for field, value in [('path', 'README.md'), ('original_sha256', '0'*64), ('current_sha256', 'bad')]:
+            invalid = copy.deepcopy(receipt); invalid['changes'][0][field] = value
+            with self.subTest(field=field), self.assertRaises(ValueError):
+                validator.maintenance_hashes(record, invalid)
+        invalid = copy.deepcopy(receipt); invalid['changes'].append(copy.deepcopy(invalid['changes'][0]))
+        with self.assertRaises(ValueError): validator.maintenance_hashes(record, invalid)
+        invalid = copy.deepcopy(receipt); invalid['repository_id'] = 1
+        with self.assertRaises(ValueError): validator.maintenance_hashes(record, invalid)
+
+    def test_no_newline_invalid_cli_does_not_echo_source(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / 'invalid.diff'
+            path.write_text(self.patch('@@ -1,2 +1,2 @@\n PRIVATE_SENTINEL\n\\ No newline at end of file\n later\n'))
+            result = self.cli(path)
+            self.assertEqual(result.returncode, 2)
+            self.assertEqual(json.loads(result.stdout)['status'], 'error')
+            self.assertNotIn('PRIVATE_SENTINEL', result.stdout + result.stderr)
     def test_bad_cli(self):
         with tempfile.TemporaryDirectory() as d:
             path=Path(d)/'bad.diff'; path.write_text('not a patch')
