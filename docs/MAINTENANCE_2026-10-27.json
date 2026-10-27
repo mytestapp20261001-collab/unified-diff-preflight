@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "repository": "mytestapp20261001-collab/unified-diff-preflight",
+  "repository_id": 1413263710,
+  "base_commit": "4b7df1ee834d972626b195d453f4a00ce2b6100f",
+  "date": "2026-10-27",
+  "scope": "ASCII hunk range syntax only. Immutable migration and October 23 receipt, SKILL, examples, workflow and optional guidance preserved. README preserved; changelog clarifies range grammar; not full Git syntax or applicability validation.",
+  "reproduction": "Arabic-Indic and fullwidth digit range headers passed the prior audit but GNU patch --dry-run rejected them as missing line numbers. No patch was applied.",
+  "changes": [
+    {
+      "path": "tool.py",
+      "original_sha256": "05ee898867fc4c0da7d48512224a99db359a0dfc30616d4aa4aa02e99e8af9c9",
+      "current_sha256": "6a312c1b7577a90cf5478b5181e98d552601595b85a79cd673c70c3118fa51b0",
+      "reason": "Restrict four hunk range fields to ASCII digits while preserving Unicode content."
+    },
+    {
+      "path": "test_tool.py",
+      "original_sha256": "42f600b4556a6f82ec02500682d85f46569abd6e748547e333e7db90ed0cb9e0",
+      "current_sha256": "0d56c52396be37dd1f26f0c9f0cb10a3a5bdd266b63a191f07232ba6080f4c91",
+      "reason": "Cover four Unicode decimal digit scripts in all range fields, CLI safe errors, valid Unicode content, and chained immutable maintenance receipts."
+    }
+  ]
+}

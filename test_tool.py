@@ -222,4 +222,48 @@ class Tests(unittest.TestCase):
         self.assertEqual(codes.count('metadata_operation_not_validated'), 2)
         self.assertIn('file_without_text_headers', codes)
 
+    def test_hunk_numbers_require_ascii_digits(self):
+        for digits in ('٠١٢٣٤٥٦٧٨٩', '۰۱۲۳۴۵۶۷۸۹', '０１２３４５６７８９', '०१२३४५६७८९'):
+            for field in range(4):
+                values = ['1', '1', '1', '1']
+                values[field] = digits[1]
+                header = '@@ -{},{} +{},{} @@'.format(*values)
+                with self.subTest(digits=digits, field=field):
+                    with self.assertRaises(tool.BadInput):
+                        tool.audit(self.patch(header + '\n-old\n+new\n'))
+
+    def test_unicode_content_and_hunk_description_preserved(self):
+        text = '--- a/文件١.txt\n+++ b/文件١.txt\n@@ -1 +1 @@ 函数１２\n-旧١\n+新２\n'
+        self.assertEqual(tool.audit(text)['status'], 'pass')
+
+    def test_cli_unicode_hunk_numbers_are_safe_errors(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / 'unicode.diff'
+            path.write_text(self.patch('@@ -١ +１ @@\n-private-old\n+private-new\n'), encoding='utf-8')
+            result = self.cli(path)
+            self.assertEqual(result.returncode, 2)
+            self.assertEqual(json.loads(result.stdout)['status'], 'error')
+            self.assertNotIn('private-', result.stdout + result.stderr)
+            self.assertEqual(result.stderr, '')
+
+    def test_second_maintenance_receipt_requires_prior_hashes(self):
+        spec = importlib.util.spec_from_file_location('validate_release', HERE/'scripts/validate_release.py')
+        validator = importlib.util.module_from_spec(spec); spec.loader.exec_module(validator)
+        record = json.loads((HERE/'docs/MIGRATION.json').read_text())
+        prior = json.loads((HERE/'docs/MAINTENANCE_2026-10-23.json').read_text())
+        current = json.loads((HERE/'docs/MAINTENANCE_2026-10-27.json').read_text())
+        expected = validator.maintenance_hashes(record, prior)
+        before = copy.deepcopy(expected)
+        final = validator.maintenance_hashes(record, current, expected)
+        self.assertEqual(expected, before)
+        for change in current['changes']:
+            self.assertEqual(change['original_sha256'], before[change['path']])
+            self.assertEqual(final[change['path']], change['current_sha256'])
+        with self.assertRaises(ValueError):
+            validator.maintenance_hashes(record, current)
+        for field, value in [('path', 'README.md'), ('original_sha256', '0'*64), ('current_sha256', 'bad')]:
+            invalid = copy.deepcopy(current); invalid['changes'][0][field] = value
+            with self.subTest(field=field), self.assertRaises(ValueError):
+                validator.maintenance_hashes(record, invalid, expected)
+
 if __name__ == '__main__': unittest.main()

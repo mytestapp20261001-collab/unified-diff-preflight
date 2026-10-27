@@ -64,7 +64,7 @@ def run(build_parser, action):
 
 import re
 TOOL = "unified-diff-preflight"
-HUNK = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@(?:.*)$")
+HUNK = re.compile(r"^@@ -([0-9]+)(?:,([0-9]+))? \+([0-9]+)(?:,([0-9]+))? @@(?:.*)$")
 
 def unsafe_path(path):
     if path == "/dev/null":

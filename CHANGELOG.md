@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-10-27
+
+- Reject Unicode decimal digits in hunk positions/counts instead of treating malformed headers as valid ranges. Unicode paths, body lines and optional hunk descriptions remain supported.
+- Preserve the original migration record and October 23 receipt; apply the new dated source/test delta after the prior receipt.
+
 ## 2026-10-23
 
 - Reject structurally inconsistent content after a no-final-newline marker on the same old/new file side, including later hunks and empty ranges that imply a gap past EOF.
