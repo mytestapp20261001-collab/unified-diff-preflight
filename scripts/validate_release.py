@@ -10,9 +10,10 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def maintenance_hashes(record, receipt):
+def maintenance_hashes(record, receipt, previous=None):
     """Keep historical hashes immutable; allow only narrowly recorded code deltas."""
-    expected = {entry['path']: entry['sha256'] for entry in record['preserved_files']}
+    expected = (dict(previous) if previous is not None else
+                {entry['path']: entry['sha256'] for entry in record['preserved_files']})
     if receipt is None:
         return expected
     if (type(receipt.get('schema_version')) is not int or receipt['schema_version'] != 1
@@ -37,10 +38,13 @@ def maintenance_hashes(record, receipt):
 def main():
     record = json.loads((ROOT / 'docs/MIGRATION.json').read_text())
     errors = []
-    receipt_path = ROOT / 'docs/MAINTENANCE_2026-10-23.json'
     try:
-        receipt = json.loads(receipt_path.read_text()) if receipt_path.exists() else None
-        expected = maintenance_hashes(record, receipt)
+        expected = maintenance_hashes(record, None)
+        # Apply dated deltas in order; never rewrite a historical receipt.
+        for name in ('MAINTENANCE_2026-10-23.json', 'MAINTENANCE_2026-10-27.json'):
+            receipt_path = ROOT / 'docs' / name
+            receipt = json.loads(receipt_path.read_text()) if receipt_path.exists() else None
+            expected = maintenance_hashes(record, receipt, expected)
     except (ValueError, TypeError, AttributeError, KeyError):
         print(json.dumps({'tool': record['slug'], 'valid': False,
                           'errors': ['invalid maintenance receipt']}))
